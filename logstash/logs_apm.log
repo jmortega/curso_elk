@@ -1,0 +1,12 @@
+192.168.86.255 - 2021-04-15T21:43:32.020+0000 DEBUG 471 - Saving timestamp of Fundamentals of Securing Elasticsearch - Limited Offer
+192.168.86.255 - 2021-04-15T21:47:47.352+0000 DEBUG 471 - Saving timestamp Anomaly Detection for Cybersecurity - Limited Offer
+192.168.86.255 - 2021-04-15T21:47:46.961+0000 DEBUG 414 - Just retrieved contact info for 87222
+192.168.86.255 - 2021-04-15T21:47:40.644+0000 DEBUG 398 - Skipping non-confirmed enrollment on Observability Fundamentals - Limited Offer PASSED
+192.168.86.255 - 2021-04-15T21:47:40.644+0000 DEBUG 402 - Processing enrollment on Anomaly Detection for Cybersecurity - Limited Offer 
+192.168.86.255 - 2021-04-15T21:47:27.249+0000 INFO  412 - Sending on Introduction to Observability: Logging - Limited Offer 114234 to Strigo
+192.168.86.255 - 2021-04-15T21:47:27.248+0000 DEBUG 402 - Processing enrollment on Introduction to Observability: Logging - Limited Offer 
+192.168.86.255 - 2021-04-15T21:47:21.247+0000 DEBUG 471 - Saving timestamp of on Introduction to Observability: Logging - Limited Offer
+192.168.86.255 - 2021-04-15T21:47:14.457+0000 DEBUG 402 - Processing enrollment on Introduction to Observability: Logging - Limited Offer 
+192.168.86.255 - 2021-04-15T21:47:08.457+0000 DEBUG 471 - Saving timestamp of Observability Fundamentals - Limited Offer
+192.168.86.255 - 2021-04-15T21:11:35.883+0000 ERROR 452 - Something failed. No longer processing enrollments!
+192.168.86.255 - 2021-04-15T21:11:35.882+0000 ERROR 451 - Error while reading from GET: [429] Too Many Requests

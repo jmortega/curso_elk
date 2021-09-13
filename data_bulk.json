@@ -1,0 +1,6 @@
+{ "create": { "_index": "my_index", "_id": "1" }}
+{ "name": "my name", "date": "20021-01-01","country": "Spain" }
+{ "create": { "_index": "my_index", "_id": "2" }}
+{ "name": "my name1", "date": "20021-01-01","country": "Italy" }
+{ "create": { "_index": "my_index", "_id": "3" }}
+{ "name": "my name2", "date": "20021-01-02","country": "France" }
