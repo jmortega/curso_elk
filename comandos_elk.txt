@@ -1,0 +1,2376 @@
+$ curl -XPUT 'http://elastic:elastic@localhost:9200/mi_indice/'
+
+$ curl -XGET 'http://elastic:elastic@localhost:9200/mi_indice?pretty'
+
+#crear índice
+PUT /catalog
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "codec": "best_compression"
+    }
+  }
+}
+
+#añadir mapping
+PUT /catalog
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "texto": {
+          "type": "text"
+        },
+        "keyword": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}
+
+#añadir documento
+PUT kibana_sample_data_flights/_doc/1
+{
+  "FlightNum": "652J760",
+  "Origin": "Amsterdam Airport Schiphol",
+  "Dest": "Stockholm-Arlanda Airport",
+  "FlightDelayMin": 0,
+  "Cancelled": false,
+  "timestamp": "2020-05-01T05:21:34"
+}
+
+
+POST kibana_sample_data_flights/_doc/
+{
+  "FlightNum": "652J760",
+  "Origin": "Amsterdam Airport Schiphol",
+  "Dest": "Stockholm-Arlanda Airport",
+  "FlightDelayMin": 0,
+  "Cancelled": false,
+  "timestamp": "2020-05-01T05:21:34"
+}
+
+#obtener documentos
+GET kibana_sample_data_flights/_doc/1
+
+GET kibana_sample_data_flights/_doc/1/_source
+
+GET kibana_sample_data_flights/_doc/1?_source=Origin
+
+GET /kibana_sample_data_flights/_doc/_mget
+{
+  "ids": [
+    "1",
+    "AVbA4WNg7uqRWQFJiJSn"
+  ]
+}
+
+GET /kibana_sample_data_flights/_mget
+{
+  "docs": [
+    {
+      "_id": "1"
+    },
+    {
+      "_id": "AVbA4WNg7uqRWQFJiJSn"
+    }
+  ]
+}
+
+#Otra forma de utilizar mget es utilizando un array de docs donde el nombre del índice lo indicamos dentro del array.
+#podmeos utilizar diferentes índices
+GET /_mget
+{
+  "docs": [
+    {
+      "_index":"kibana_sample_data_flights",
+      "_id": "1"
+    },
+    {
+     "_index":"kibana_sample_data_log",
+      "_id": "1"
+    }
+  ]
+}
+
+
+#actualizar documento
+PUT kibana_sample_data_flights/_doc/1
+{
+  "FlightNum": "652J760",
+  "Origin": "Amsterdam Airport Schiphol",
+  "Dest": "Stockholm-Arlanda Airport",
+  "FlightDelayMin": 100,
+  "Cancelled": false,
+  "timestamp": "2020-05-01T05:21:34"
+}
+
+#actualizar de forma parcial
+POST kibana_sample_data_flights/_update/1
+{
+  "doc": {
+    "FlightDelayMin": 260,
+    "tags":["flight1","delayed"]
+  }
+}
+
+#Si hacemos un mapping vemos que el del tipo text
+GET kibana_sample_data_flights/_mapping
+
+"tags" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        }
+
+
+#actualizar con script
+POST kibana_sample_data_flights/_doc/1/_update
+{
+  "script": "ctx._source.FlightDelayMin = 200"
+}
+
+#actualizar más de un campo
+POST kibana_sample_data_flights/_doc/1/_update
+{
+  "script": "ctx._source.FlightDelayMin = 200;ctx._source.Cancelled = true"
+}
+
+
+POST kibana_sample_data_flights/_update/1
+{
+  "script": {
+    "source": "if (ctx._source.Origin.contains(params.origin)) { ctx._source.FlightDelayMin = 100 } else { ctx._source.FlightDelayMin = 300 }",
+    "lang": "painless",
+    "params": {
+      "origin": "Amsterdam Airport Schipholl"
+    }
+  }
+}
+
+#eliminar un campo
+POST kibana_sample_data_flights/_doc/1/_update
+{
+  "script": {
+    "source": "ctx._source.remove('tags')",
+    "lang": "painless"
+  }
+}
+
+#upsert con la actualiación de más de un campo
+POST kibana_sample_data_flights/_update/1
+{
+  "script": {
+    "source": "ctx._source.FlightDelayMin += params.count",
+    "lang": "painless",
+    "params": {
+      "count": 4
+    }
+  },
+  "upsert": {
+    "Origin": "origin airport",
+    "Dest": "destination airport"
+  }
+}
+
+#si no existe el documento,se crearía con id =2
+POST kibana_sample_data_flights/_update/2
+{
+  "script": {
+    "source": "ctx._source.FlightDelayMin += params.count",
+    "lang": "painless",
+    "params": {
+      "count": 4
+    }
+  },
+  "upsert": {
+    "Origin": "origin airport"
+  }
+}
+
+#scripted_upsert
+POST kibana_sample_data_flights/_update/1
+{
+  "scripted_upsert": true,
+  "script": {
+    "source": "ctx._source.FlightDelayMin += params.count",
+    "lang": "painless",
+    "params": {
+      "count": 4
+    }
+  },
+  "upsert": {
+    "Origin": "new airport",
+    "FlightDelayMin":200
+  }
+}
+
+#doc_as_upsert
+POST kibana_sample_data_flights/_update/1
+{
+  "doc": {
+    "FlightDelayMin": 260,
+    "tags": [
+      "flight1",
+      "delayed"
+    ]
+  },
+  "doc_as_upsert": true
+}
+
+#borrar documento
+DELETE kibana_sample_data_flights/_doc/<id>
+
+POST kibana_sample_data_flights/_delete_by_query
+{
+"query":{"match":{"_id":<id>}}
+}
+
+POST kibana_sample_data_flights/_delete_by_query?q=_id:<id>
+
+#borrar,cerrar,abrir índices
+curl -XDELETE 'http://localhost:9200/<indice>'
+curl -XPOST 'http://localhost:9200/<indice>/_open'
+curl -XPOST 'http://localhost:9200/<indice>/_close'
+
+
+#Importando datos con cURL
+$ cat data.json 
+$ curl -s -H "Content-Type: application/json" -XPOST http://elastic:elastic@localhost:9200/_bulk --data-binary "@data.json"; echo
+
+#bulk
+POST /_bulk?pretty
+{"delete":{"_index":"kibana_sample_data_flights","_type":"_doc","_id":"1"}}
+{"create":{"_index":"kibana_sample_data_flights","_type":"_doc","_id":"1"}}
+{"FlightNum":"652J760","Origin":"Amsterdam Airport Schiphol","Dest":"Stockholm-Arlanda Airport","FlightDelayMin":100,"Cancelled":false,"timestamp":"2020-05-01T05:21:34"}
+{"update":{"_index":"kibana_sample_data_flights","_type":"_doc","_id":"1"}}
+{"doc":{"FlightDelayMin":200}}
+
+#estadísticas del índice
+GET kibana_sample_data_flights/_stats
+
+
+#tipo de datos geo_point
+PUT my-index-geo
+{
+  "mappings": {
+    "properties": {
+      "location": {
+        "type": "geo_point"
+      }
+    }
+  }
+}
+
+PUT my-index-geo/_doc/1
+{
+  "text": "Geo-point as an object",
+  "location": { 
+    "lat": 41.12,
+    "lon": -71.34
+  }
+}
+
+GET my-index-geo/_mapping
+GET my-index-geo/_search
+
+#tipo objeto
+POST my_index_object_type/_doc/1
+{
+  "person": {
+    "name": {
+      "firstname": "Martin",
+      "lastname": "Fowler"
+    }
+  }
+}
+
+GET my_index_object_type/_mapping
+
+GET my_index_object_type/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "person.name.firstname": "martin"
+          }
+        },
+        {
+          "match": {
+            "person.name.lastname": "fowler"
+          }
+        }
+      ]
+    }
+  }
+}
+
+#tipos anidados
+PUT /library
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "codec": "best_compression"
+    }
+  }
+}
+
+PUT /library/_mapping
+{
+    "properties": {
+      "title": {
+        "type": "text"
+      },
+      "author": {
+        "type": "text"
+      },
+      "tags": {
+        "type": "text"
+      },
+      "year": {
+        "type": "integer"
+      },
+      "review": {
+        "type": "nested",
+        "properties": {
+          "nickname": {
+            "type": "text"
+          },
+          "text": {
+            "type": "text"
+          },
+          "stars": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+}
+
+
+POST /library/_doc/1
+{
+  "title": "Book",
+  "author": "Author",
+  "tags": [
+    "elasticSearch",
+    "logstash",
+    "kibana"
+  ],
+  "year": 2020,
+  "review": [
+    {
+      "nickname": "username",
+      "text": "text",
+      "stars": 3
+    }
+  ]
+}
+GET library/_mapping
+GET library/_search
+
+#realizar busquedas sobre objeto nested
+
+GET /library/_search
+{
+  "query": {
+    "nested": {
+      "path": "review",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "review.nickname": "username"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+#mapping dinamico
+PUT /catalog/_doc/1
+{
+  "sku": "SP000001",
+  "title": "Elasticsearch for Hadoop",
+  "description": "Elasticsearch for Hadoop",
+  "author": "Author",
+  "ISBN": "1785288997",
+  "price": 26.99
+}
+
+GET catalog/_mapping
+
+PUT /catalog/_doc/2
+{
+"sku": "SP000002",
+"title": "Google Pixel Phone 32GB - 5 inch display",
+"description": "Google Pixel Phone 32GB",
+"price": 400.0,
+"long":100,
+"resolution": "1440 x 2560 pixels",
+"os": "Android 7.1"
+}
+
+#Añadiendo mappings a índices existentes
+PUT /catalog/_mapping
+{
+"properties": {
+"name": {
+"type": "text"
+}
+}
+}
+
+#fechas
+PUT my-index-date
+{
+  "mappings": {
+    "properties": {
+      "date": {
+        "type": "date" 
+      }
+    }
+  }
+}
+
+PUT my-index-date/_doc/1
+{
+  "date": "2021-01-01"
+} 
+
+PUT my-index-date/_doc/2
+{
+  "date": "2021-01-01T12:10:30Z"
+} 
+
+GET my-index-date/_search
+{
+  "sort": { "date": "asc"} 
+}
+
+PUT my-index-date/_mapping
+{
+  "properties": {
+    "date2": {
+      "type": "date",
+      "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd"
+    }
+  }
+}
+
+PUT my-index-date/_doc/1
+{
+  "date2": "2021-01-01"
+} 
+
+PUT my-index-date/_doc/2
+{
+  "date2": "2021-01-01 10:22:22"
+} 
+
+#ciudades-geo-point
+
+PUT /ciudades
+{
+  "mappings": {
+      "properties": {
+        "country": {
+          "type": "text",
+          "fielddata": true
+        },
+        "city": {
+          "type": "text"
+        },
+        "region": {
+          "type": "text"
+        },
+        "population": {
+          "type": "long"
+        },
+        "location": {
+          "type": "geo_point"
+        }
+    }
+  }
+}
+
+
+PUT /ciudades/_doc/1
+{
+  "country": "es",
+  "city": "Barcelona",
+  "region": "gi",
+  "population": 3000000,
+  "location": { 
+    "lat": 41.390205,
+    "lon": 2.154007
+  }
+}
+
+POST _bulk
+{"index":{"_index":"ciudades","_id":"2"}}
+{"country":"es","city":"Alicante","region":"cv","population":300000,"location":{"lat":38.34517,"lon":-0.48149}}
+
+POST _bulk
+{"index":{"_index":"ciudades","_id":"3"}}
+{"country":"es","city":"Valencia","region":"cv","population":700000,"location":{"lat":39.46975,"lon":-0.37739}}
+
+
+GET /ciudades/_search?pretty=true
+{
+  "query": {
+    "query_string": {
+      "query": "valencia"
+    }
+  }
+}
+
+GET /ciudades/_mapping
+
+GET /ciudades/_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "match_all": {}
+      },
+      "filter": {
+        "geo_distance": {
+          "distance": "200km",
+          "location": {
+            "lat": 39.46975,
+            "lon": -0.37739
+          }
+        }
+      }
+    }
+  }
+}
+
+#crear un campo como copia a partir de otro
+POST kibana_sample_data_flights/_mappings
+{
+  "properties": {
+    "origin": {
+      "type": "keyword",
+      "fields": {
+        "text": {
+          "type": "text"
+        }
+      }
+    }
+  }
+}
+
+POST kibana_sample_data_flights/_analyze
+{
+  "field":"OriginCityName",
+  "text":"Frankfurt am Main Airportfd",
+  "explain":true
+}
+
+POST kibana_sample_data_flights/_update_by_query
+{
+ "script": {
+ "source": """
+ ctx._source.origin = ctx._source.Origin;
+ """,
+ "lang": "painless"
+ }
+}
+
+#añadir un nuevo campo en todos los documentos
+POST /kibana_sample_data_flights/_update_by_query
+{
+  "query": {
+    "match_all": {}
+  },
+  "script": {
+    "source": "ctx._source.new_field='description'"
+  }
+}
+
+----------------------------------------------
+
+#Filtros de caracteres
+
+GET /_analyze
+{
+  "tokenizer": "keyword",
+  "char_filter": [
+    {
+      "type": "mapping",
+      "mappings": [
+        "&#35; => #",
+        "&#37; => %",
+        "&#38; => &"
+      ]
+    }
+  ],
+  "text": "HTML ASCII &#35; &#37; &#38;"
+}
+
+
+GET /_analyze
+{
+  "tokenizer": "keyword",
+  "char_filter": [
+    "html_strip",
+    {
+      "type": "mapping",
+      "mappings": [
+        "I'll => I will"
+      ]
+    }
+  ],
+  "text": "<p>I'll <b>learn elastic </b>!</p>"
+}
+
+#con índice
+
+PUT /my-index-char-filter
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "keyword",
+          "char_filter": [
+            "html_strip",
+            "my_mappings_char_filter"
+          ]
+        }
+      },
+      "char_filter": {
+        "my_mappings_char_filter": {
+          "type": "mapping",
+          "mappings": [
+            "I'll => I will"
+          ]
+        }
+      }
+    }
+  }
+}
+
+GET /my-index-char-filter/_analyze
+{
+  "tokenizer": "keyword",
+  "char_filter": [ "my_mappings_char_filter","html_strip"],
+  "text": "<p>I'll <b>learn elastic </b>!</p>"
+}
+
+#tokenizer standard
+
+POST _analyze
+{
+  "tokenizer": "standard",
+  "text": "Tokenizer breaks characters into tokens!"
+}
+
+#tokenizer lowercase
+POST _analyze
+{
+  "tokenizer": "lowercase",
+  "text": "Tokenizer lowercase put characters into lowercase"
+}
+
+#filtros de tokens
+#pasar a minusculas
+GET _analyze
+{
+  "tokenizer" : "standard",
+  "filter" : ["lowercase"],
+  "text" : "THE Quick FoX JUMPs"
+}
+
+#eliminar stopwords
+GET /_analyze
+{
+  "tokenizer": "standard",
+  "filter": ["stop"],
+  "text": "a quick fox jumps over the lazy dog"
+}
+
+#raíces de palabras
+GET /_analyze
+{
+  "tokenizer": "standard",
+  "filter": ["stemmer"],
+  "text": "jumping fixing"
+}
+
+
+PUT index_standard_analyzer
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "std": {
+          "type": "standard"
+        }
+      }
+    }
+  },
+  "mappings": {
+      "properties": {
+        "my_text": {
+          "type": "text",
+          "analyzer": "std"
+        }
+      }
+  }
+}
+
+POST index_standard_analyzer/_analyze
+{
+  "field": "my_text",
+  "text": "The Standard Analyzer works this way."
+}
+
+#con tratamiento de stopwords en ingles
+PUT index_standard_analyzer_english_stopwords
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "std": {
+          "type": "standard",
+          "stopwords": "_english_"
+        }
+      }
+    }
+  },
+  "mappings": {
+      "properties": {
+        "my_text": {
+          "type": "text",
+          "analyzer": "std"
+        }
+      }
+  }
+}
+
+
+POST index_standard_analyzer_english_stopwords/_analyze
+{
+"field": "my_text",
+"text": "The Standard Analyzer works this way."
+}
+
+#analizador personalizado->uppercase+my_stopwords+ char_filter
+
+PUT /my_index
+{
+  "settings": {
+    "analysis": {
+      "char_filter": {
+        "&_to_and": {
+          "type": "mapping",
+          "mappings": [
+            "&=> and "
+          ]
+        }
+      },
+      "filter": {
+        "my_stopwords": {
+          "type": "stop",
+          "stopwords": [
+            "the",
+            "a"
+          ]
+        }
+      },
+      "analyzer": {
+        "my_analyzer": {
+          "type": "custom",
+          "char_filter": [
+            "html_strip",
+            "&_to_and"
+          ],
+          "tokenizer": "standard",
+          "filter": [
+            "uppercase",
+            "my_stopwords"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+      "properties": {
+        "my_text": {
+          "type": "text",
+          "analyzer": "my_analyzer"
+        }
+      }
+  }
+}
+
+
+
+POST my_index/_analyze
+{
+"field": "my_text",
+"text": "The Standard Analyzer &  this way."
+}
+
+#analizador personalizado
+PUT /custom_analyzer_index2
+{
+  "settings": {
+    "index": {
+      "analysis": {
+        "analyzer": {
+          "custom_analyzer": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": [
+              "lowercase",
+              "custom_edge_ngram"
+            ]
+          }
+        },
+        "filter": {
+          "custom_edge_ngram": {
+            "type": "edge_ngram",
+            "min_gram": 2,
+            "max_gram": 10
+          }
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "product": {
+        "type": "text",
+        "analyzer": "custom_analyzer",
+        "search_analyzer": "standard"
+      }
+    }
+  }
+}
+
+
+POST /custom_analyzer_index2/_doc
+{
+"product": "Learning Elastic Stack 6"
+}
+
+POST /custom_analyzer_index2/_doc
+{
+"product": "Mastering Elasticsearch"
+}
+
+GET /custom_analyzer_index2/_search
+{
+  "query": {
+    "match": {
+      "product": "Elastic"
+    }
+  }
+}
+
+#limitar el numero de caracteres por token
+PUT my-index-tokenizer_max_length
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "my_tokenizer"
+        }
+      },
+      "tokenizer": {
+        "my_tokenizer": {
+          "type": "standard",
+          "max_token_length": 5
+        }
+      }
+    }
+  }
+}
+
+POST my-index-tokenizer_max_length/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "The 2 QUICK Brown-Foxes jumped over the lazy dog's bone."
+}
+
+
+#filtro de sinonimos
+
+El filtro de sinónimos reemplaza los sinónimos de palabras en el flujo de tokens. Podríamos definir un analizador personalizado que especifique un sinónimo de "automóvil".
+
+PUT /my_index_synonyms
+{
+  "settings": {
+    "analysis": {
+      "filter": {
+        "my_synonym_filter": {
+          "type": "synonym",
+          "synonyms": [ 
+            "british,english",
+            "automobile,car"
+          ]
+        }
+      },
+      "analyzer": {
+        "my_synonyms": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "my_synonym_filter"
+          ]
+        }
+      }
+    }
+  }
+}
+
+GET my_index_synonyms/_analyze
+{
+"analyzer": "my_synonyms",
+"text": "this is my british automobile"
+}
+
+
+#stemmer spanish
+PUT /my-index-stemmer-spanish
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "my_stemmer"
+          ]
+        }
+      },
+      "filter": {
+        "my_stemmer": {
+          "type": "stemmer",
+          "language": "spanish"
+        }
+      }
+    }
+  }
+}
+
+POST my-index-stemmer-spanish/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "analizando las posibilidades que ofrece el api de elasticSearch"
+}
+
+#stemmer english
+PUT /my-index-stemmer-english
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "my_stemmer"
+          ]
+        }
+      },
+      "filter": {
+        "my_stemmer": {
+          "type": "stemmer",
+          "language": "english"
+        }
+      }
+    }
+  }
+}
+
+POST my-index-stemmer-english/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "analyzing the possibilities offered by the elasticSearch api"
+}
+
+
+# snowball analyzer.Este analizador utiliza el tokenizador estándar, con filtro estándar, filtro de minúsculas, filtro de parada y filtro de caarcteres espaciales.
+
+PUT test_snowball
+{
+  "mappings": {
+      "properties": {
+        "title": {
+          "type": "text",
+          "analyzer": "snowball"
+        }
+      }
+  }
+}
+
+POST test_snowball/_analyze
+{
+"field": "title",
+"text": "The Standard Analyzer & this way."
+}
+
+#insert document
+PUT test_snowball/_doc/1
+{
+"title" : "the quick brown fox jumps over the lazy dog"
+}
+
+
+#La primera consulta no devolverá nuestro documento, pero la segunda consulta si lo hace al utilizar el match.
+#La razon de esto es que el term tiene en cuenta el analizador, mientras que el match no.
+
+GET test/_search
+{
+  "query": {
+    "term": {
+      "title": "jumps"
+    }
+  }
+}
+
+GET test/_search
+{
+  "query": {
+    "match": {
+      "title": "jumps"
+    }
+  }
+}
+
+--------------------------------------------
+#busquedas
+
+GET kibana_sample_data_flights/_search
+
+
+# Vuelos con origen en un aeropuerto específico
+GET kibana_sample_data_flights/_search
+{
+  "query": {
+    "match": {
+      "Origin": "Frankfurt am Main Airport"
+    }
+  }
+}
+
+# Vuelos que se retrasan 60 minutos o mas
+GET kibana_sample_data_flights/_search?filter_path=hits.hits._source
+{
+  "size": 10,
+  "_source": ["FlightDelayMin","FlightNum"],
+  "query": {
+    "range": {
+      "FlightDelayMin": {
+        "gte": 60
+      }
+    }
+  }
+
+#obtener todos los documentos de un índice
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+#Podríamos realizar consultas utilizando la URI junto con el parámetro q.
+GET /kibana_sample_data_logs/_search?q=*:*
+
+# orden de los resultados con el parámetro sort={campo_ordenación}
+GET /kibana_sample_data_logs/_search?sort=clientip&pretty
+
+#obtener campos específicos
+GET /kibana_sample_data_logs/_search/?_source=clientip,agent
+
+PUT /kibana_sample_data_logs/_mapping
+{
+  "properties": {
+    "machine.os": {
+      "type": "text",
+      "fielddata": true
+    }
+  }
+}
+
+#búsqueda por un termino
+#La consulta term se usa para buscar por valores exactos
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "term": {
+      "bytes": 1000
+    }
+  }
+}
+
+#búsqueda de una ip
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "bool": {
+      "filter": {
+        "term": {
+          "clientip": "54.190.60.72"
+        }
+      }
+    }
+  }
+}
+
+#match: la cadena de consulta se convierte en tokens para que coincida con los campos de texto de búsqueda y luego un operador booleano, and | or (predeterminado = or), agrupa lógicamente todas las coincidencias para calcular el resultado final.
+
+#Match devuelve aquellos documentos que coincidan con el criterio de búsqueda en un campo {"match":{"field":"value"}}
+
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "match": {
+      "agent": {
+        "query": "Linux x86_64 Mozilla/5.0",
+        "operator": "and"
+      }
+    }
+  }
+}
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match": {
+      "agent": {
+        "query": "Linux x86_64 Mozilla",
+        "operator": "or"
+      }
+    }
+  }
+}
+
+#busqueda para un agent
+#match_phrase:Lo que queremos son todos los documentos que tengan esta secuencia exacta de palabras en el mismo orden
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match_phrase": {
+      "agent": "Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1) Gecko/20110421 Firefox/6.0a1"
+    }
+  }
+}
+
+#si cambiamos el orden de las palabras de búsqueda ya no obtenemos ningun resultado
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match_phrase": {
+      "agent": "Gecko/20110421 Firefox/6.0a1 Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1)"
+    }
+  }
+}
+
+
+#si utilizamos match,ya obtenemos de nuevo los resultados con la misma cadena que antes
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match": {
+      "agent": "Gecko/20110421 Firefox/6.0a1 Mozilla/5.0 (X11; Linux x86_64; rv:6.0a1)"
+    }
+  }
+}
+
+#por prefijo
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match_phrase_prefix": {
+      "agent": "Mozilla/5.0"
+    }
+  }
+}
+
+#Multifeld match query
+#Una consulta de coincidencia de varios campos tiene la posibilidad de buscar en varios campos.
+# Multi_match devuelve aquellos documentos que coincidan con el criterio de búsqueda en varios campos
+#{"multi_match":{"query":"my_query","fields":["field1","field2"]}}
+
+#Los nombres de campo(fields) se pueden especificar con comodines: cualquier campo que coincida con el patrón de comodín se incluirá en la búsqueda.
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "223.87.60.27",
+      "fields": "*ip"
+    }
+  }
+}
+
+
+#También puede dar prioridad o importancia a cada campo junto con él. Esto nos ayuda a decirle a Elasticsearch que trate ciertas coincidencias de campo mejor que otras.
+#Para obtener diferentes scores necesitamos decirle a ElasticSearch qué importancia tiene cada uno de los campos.
+#Al añadir el nombre del campo con un símbolo de intercalación (^), se le está indicando que aumente el valor de boost en ese campo.
+
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "x86_64",
+      "fields": [
+        "agent^2",
+        "message"
+      ]
+    }
+  }
+}
+
+#busqueda por múltiples terminos
+# should: Sería el equivalente a una comparación usando la función binaria “OR”. Por ejemplo, si una documento debe tener una extension determinada y debe contener un determinada ip, siendo estas dos búsquedas establecidas bajo el criterio “should”, devolverá como resultado, todas los documentos que contengan la extension y la ip, las que solo contengan la extension y las que solo contengan la ip.
+
+GET kibana_sample_data_logs/_search
+{
+    "query": {
+        "bool": {
+            "should": [
+                { "match": { "extension": "deb" }},
+                { "match": { "clientip":  "223.87.60.27" }}
+            ]
+        }
+    }
+}
+
+#must: Sería el equivalente a una comparación usando la función binaria “AND”. Reutilizando el mismo ejemplo del caso anterior, pero con la lógica de la función “AND”, en este caso solamente se obtendrían los documentos que contengan la extension y la ip especificadas en la búsqueda.
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "bool": {
+        "must": [
+                { "match": { "extension": "deb" }},
+                { "match": { "ip":  "223.87.60.27" }}
+            ]
+          
+    }
+  }
+}
+
+#rango de fechas
+#Range permite buscar documentos con campos que se encuentren dentro de un rango{gt,gte,lt,lte}
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "range": {
+      "timestamp": {
+        "gte": "2021-01-01",
+        "lte": "2021-08-01"
+      }
+    }
+  }
+}
+
+#rango de valores
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "range": {
+      "bytes": {
+        "gte": 1000,
+        "lte": 1500
+      }
+    }
+  }
+}
+
+#Consultas con comodines y expresiones regulares
+#La consulta comodín es una consulta de bajo nivel basada en términos de naturaleza similar a la consulta de prefijo, pero le permite especificar un patrón en lugar de solo un prefijo. Utiliza los comodines estándar de shell:? Coincide con cualquier carácter y * coincide con cero o más caracteres.
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "wildcard": {
+      "agent": "L?n*x"
+    }
+  }
+}
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "regexp": {
+      "agent": "M*[0-9].[0-9]"
+    }
+  }
+}
+
+#busqueda paginada
+#Por defecto te devuelve los 10 primeros documentos.
+#Utilizamos los parámetros from y size, indicando la posición desde la que quieres obtener los documentos y el número de documentos a obtener.
+
+GET kibana_sample_data_logs/_search?size=5&from=10
+
+GET kibana_sample_data_logs/_search
+{
+  "from":10,
+  "size":5,
+  "_source":false
+}
+
+#validar y explicar una query
+
+#Esta API nos ayuda a saber si la consulta es válida antes de ejecutar la consulta. Para usar esta API podemos usar el endpoint /_validate/query
+
+#query correcta
+GET /kibana_sample_data_logs/_validate/query?explain=true
+{
+  "query" : {
+    "term" : { "clientip" : "129.138.185.193" }
+  }
+}
+
+#query incorrecta
+GET /kibana_sample_data_logs/_validate/query?explain=true
+{
+  "query" : {
+    "term" : { "clientip" : 43443 }
+  }
+}
+
+### explain
+
+### Devuelve información sobre por qué un documento específico coincide (o no) con una consulta.
+### Hay que pasar por parámetro el identificador del documento
+
+#explicación de la busqueda
+GET /kibana_sample_data_logs/_doc/S-np5HoBHYOqlIYeflXK/_explain
+{
+  "query" : {
+    "match" : { "clientip" : "129.138.185.193" }
+  }
+}
+
+
+POST /kibana_sample_data_logs/S-np5HoBHYOqlIYeflXK
+{
+  "explain": true,
+  "query" : {
+    "match" : { "clientip" : "129.138.185.193" }
+  }
+}
+
+
+
+
+#Geo Queries
+#Estas consultas tratan con ubicaciones geográficas y puntos geográficos. Estas consultas ayudan a encontrar cualquier objeto geográfico cercano a cualquier ubicación. Debe utilizar el tipo de datos de punto geográfico.
+#https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-geo-distance-query.html
+
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "geo_distance": {
+      "distance": "1km",
+      "geo.coordinates":  {
+        "lat":38.58338806,
+        "lon":-86.46248778
+      }
+    }
+  }
+}
+
+#ordenacion de resultados
+#Podríamos ordenar los documentos por un determinado campo que nos pueda interesar. Podemos hacer esto con el parámetro sort.
+
+GET /kibana_sample_data_logs/_search
+{
+  "query": {
+    "match": {
+      "clientip": "54.190.60.72"
+    }
+  },
+  "sort": [
+    {
+      "bytes": {
+        "order": "asc"
+      }
+    },
+    {
+      "_score": {
+        "order": "asc"
+      }
+    }
+  ]
+}
+
+
+#busquedas en campos text y keyword
+POST /blog/_doc/1
+{"title":"HTML Introduction","category":["HTML"],"content":"HTML is a markup language for describing web documents","publishdate":"10-01-2021","tags":["html","markup-language"]}
+
+POST /blog/_doc/2
+{"title":"NoSQL Concept and MongoDB","category":["NoSQL","BigData"],
+"content":"In recent years, we often hear the name of NoSQL as a new star","publishdate":"14-06-2021","tags":["nosql","bigdata","mongodb"]}
+
+POST /blog/_doc/3
+{"title":"NoSQL with JPA","category":["NoSQL","BigData","JPA"],"content":"EclipseLink, reference implementation of JPA...","publishdate":"05-08-2021","tags":["nosql","bigdata","mongodb","eclipselink","jpa"]}
+
+POST /blog/_doc/4
+{"title":"JSF 2.2: HTML 5 Support","category":["HTML","Java","JSF"],"content":"HTML 5 is the fifth version of the HTML markup Standard...","publishdate":"21-08-2021","tags":["html 5","jsf"]}
+
+POST /blog/_doc/5
+{"title":"Introduction to ElasticSearch","category":["Java","BigData"],"content":"Elasticsearch is an open source...","publishdate":"16-09-2021","tags":["java","bigdata","elasticsearch","search-engine"]}
+
+
+GET /blog/_mapping
+
+DELETE /blog
+
+si buscamos aquellos documentos con el tag html 5 vemos como devuelve 2 resultados.
+
+GET /blog/_search?pretty
+{
+  "query": {
+    "match": {
+      "tags": "html 5"
+    }
+  }
+}
+
+En realidad, tenemos un solo documento que contiene una etiqueta HTML, pero la consulta devuelve dos documentos. La razón de esto es que el índice de Blog se creó con mapeo dinámico y por lo tanto la defininión del campo es:
+
+ "tags" : {
+          "type" : "text",
+          "fields" : {
+            "keyword" : {
+              "type" : "keyword",
+              "ignore_above" : 256
+            }
+          }
+        },
+
+De esta forma el campos tags es analizado el analizador estándar que divide el texto en palabras.Por lo tanto, la palabra html aparece en los tags de esos documentos. Si queremos buscar por un valor exacto del campo de tags,tenemos que indicarle en el mapping que el campo tags sea del tipo keyword.
+
+PUT /blog/
+{
+  "mappings": {
+      "properties": {
+        "title": {
+          "type": "text"
+        },
+        "category": {
+          "type": "text"
+        },
+        "content": {
+          "type": "text"
+        },
+        "publishdate": {
+          "type": "date",
+          "format": "dd-MM-yyyy"
+        },
+        "tags": {
+          "type": "keyword" #indexado,pero no analizado,ideal para realizar busquedas exactas
+        }
+      }
+  }
+}
+
+------------------------------
+#agregraciones
+
+#top aeropuertos de origen
+GET kibana_sample_data_flights/_search
+{
+  "size": 0,
+  "aggregations": {
+    "top_aeropuertos_origen": {
+      "terms": {
+        "field": "Origin",
+        "size":3
+      }
+    }
+  }
+}
+
+#retraso de media en los vuelos para los aeropuertos top origen
+GET kibana_sample_data_flights/_search
+{
+  "size": 0,
+  "aggregations": {
+    "top_aeropuertos_origen": {
+      "terms": {
+        "field": "Origin",
+        "size": 3
+      },
+      "aggregations": {
+        "media_retraso": {
+          "avg": {
+            "field": "FlightDelayMin"
+          }
+        }
+      }
+    }
+  }
+}
+
+#Agregaciones por métricas
+
+#media distancia recorrida en km por todos los vuelos
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {                     
+    "km_average": {                
+      "avg": {                           
+        "field": "DistanceKilometers"       
+      }      
+    }
+  },
+  "size": 0                            
+}
+
+#distancia recorrida en km por todos los vuelos
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {                     
+    "km_sum": {                  
+      "sum": {                         
+        "field": "DistanceKilometers"       
+      }      
+    }
+  },
+  "size": 0                            
+}
+
+#valor maximo
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {                    
+    "km_max": {                  
+      "max": {                         
+        "field": "DistanceKilometers"       
+      }      
+    }
+  },
+  "size": 0                            
+}
+
+#obtener metricas para los valores minimo y maximo
+GET kibana_sample_data_flights/_search?size=0
+{
+  "aggs": {
+    "origin": {
+      "terms": {
+        "field": "Origin"
+      },
+      "aggs": {
+        "avg_km": {
+          "avg": {
+            "field": "DistanceKilometers"
+          }
+        },
+        "min_km": {
+          "min": {
+            "field": "DistanceKilometers"
+          }
+        },
+        "max_km": {
+          "max": {
+            "field": "DistanceKilometers"
+          }
+        }
+      }
+    }
+  }
+}
+
+#buckets
+GET kibana_sample_data_flights/_search?size=0      
+{
+  "query": {
+    "match_all": {}
+  },
+  "aggregations": {
+    "OriginCityName": {
+      "terms": {
+        "field": "OriginCityName",
+        "size": 10
+      }
+    }
+  }
+}
+
+#por término
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "by_Origin": {
+      "terms": {
+        "field": "Origin"
+      }
+    }
+  },
+   "size": 0
+}
+
+#categorias de un campo
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {                           
+    "byCategory": {                   
+      "terms": {                      
+        "field": "Carrier"           
+      }
+    }
+  },
+  "size": 0                           
+}
+
+#para un carrier especifico,dime los destinos y el número de
+#veces que se repite
+GET kibana_sample_data_flights/_search
+{
+  "query": {
+    "term": {
+      "Carrier": "Kibana Airlines"
+    }
+  }, 
+  "aggs": {                           
+    "byDestCityName": {                   
+      "terms": {                      
+        "field": "DestCityName"           
+      }
+    }
+  }
+  ,"size": 0
+}
+
+GET kibana_sample_data_flights/_search?size=0
+{
+  "query": {
+    "bool": {
+      "must": [
+        {"term": {"Carrier": "Kibana Airlines"}}, 
+        {"range": {"FlightTimeMin": {"gte": 60, "lte": 120}}}
+      ]
+    }
+  },
+  "aggs": {
+    "byDestCityName": {
+      "terms": {
+        "field": "DestCityName"
+      }
+    }
+  }
+}
+
+#Podríamos tener más de un nivel de agregación que nos permita anidar la métrica promedio dentro del grupo de términos.Podriamos obtener la media de km para cada aeropuerto origen
+GET kibana_sample_data_flights/_search?size=0
+{
+   "aggs": {
+      "origin": {
+         "terms": {
+            "field": "Origin"
+         },
+         "aggs": {
+            "avg_km": {
+               "avg": {
+                  "field": "DistanceKilometers"
+               }
+            }
+         }
+      }
+   }
+}
+
+
+#Estadísticas
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {
+    "km_stats": {
+      "stats": {
+        "field": "DistanceKilometers"
+      }
+    }
+  },
+  "size": 0
+}
+
+#mas estadisticas
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {
+    "km_extended_stats": {
+      "extended_stats": {
+        "field": "DistanceKilometers"
+      }
+    }
+  },
+  "size": 0
+}
+
+#Cardinalidad
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {
+    "unique_origin": {
+      "cardinality": {
+        "field": "Origin"
+      }
+    }
+  },
+  "size": 0
+}
+
+
+#carriers únicos
+GET kibana_sample_data_flights/_search
+{
+ "aggregations": {
+    "unique_carriers": {
+      "cardinality": {
+        "field": "Carrier"
+      }
+    }
+  },
+  "size": 0
+}
+
+#histograma vuelos/km
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "by_km": {
+      "histogram": {
+        "field": "DistanceKilometers",
+        "interval": 5000
+      }
+    }
+  },
+   "size": 0
+}
+
+
+#podríamos anidar una métrica de suma dentro de cada rango de definido, que nos mostrará el número de km totales para ese rango.
+GET /kibana_sample_data_flights/_search
+{
+   "size" : 0,
+   "aggs":{
+      "by_km":{
+         "histogram":{ 
+            "field": "DistanceKilometers",
+            "interval": 5000
+         },
+         "aggs":{
+            "distance": {
+               "sum": {
+                 "field" : "DistanceKilometers"
+               }
+             }
+         }
+      }
+   }
+}
+
+
+#Agregaciones por rango
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "by_km": {
+      "range": {
+        "field": "DistanceKilometers",
+        "ranges": [
+          { "to": 1000 },
+          { "from": 1000, "to": 5000 },
+          { "from": 5000 }
+        ]
+      }
+    }
+  },
+   "size": 0
+}
+
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "by_km": {
+      "range": {
+        "field": "DistanceKilometers",
+        "ranges": [
+          { "key": "Upto 1000 km","to": 1000 },
+          { "key": "From 1000 to 5000 km","from": 1000, "to": 5000 },
+          { "key": "More than 5000 km","from": 5000 }
+        ]
+      }
+    }
+  },
+   "size": 0
+}
+
+
+#Si queremos encontrar todos los vuelos de más de 19000 km y también calcular el número de km promedio de esas resultados, podemos realizar la siguiente consulta:
+GET kibana_sample_data_flights/_search
+{
+  "size": 10,
+  "query": {
+    "range": {
+      "DistanceKilometers": {
+        "gt": 19000
+      }
+    }
+  },
+  "aggs": {
+    "single_avg_km": {
+      "avg": {
+        "field": "DistanceKilometers"
+      }
+    }
+  }
+}
+
+#geolocalizacion
+GET kibana_sample_data_flights/_search
+
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "within_radius": {
+      "geo_distance": {
+        "field": "OriginLocation",
+        "origin": {"lat": 50.033333,"lon": 8.570556},
+        "ranges": [{"from": 1000,"to": 150000}]
+      }
+    }
+  },
+   "size": 0
+}
+
+# por filtro
+
+GET kibana_sample_data_flights/_search
+{
+  "aggs": {
+    "filter_origin": {
+      "filter": {
+        "term": {
+          "Origin": "Frankfurt am Main Airport"
+        }
+      }
+    }
+  },
+  "size": 0
+}
+
+
+#rango de ips
+GET /kibana_sample_data_logs/_search?size=2
+{
+  "aggs": {
+    "ip_ranges": {
+      "ip_range": {
+        "field": "clientip",
+        "ranges": [
+          {
+            "from": "223.87.60.0"
+          },
+          {
+            "to": "223.87.60.255"
+          }
+        ]
+      }
+    }
+  }
+}
+
+#rango de fechas
+GET /kibana_sample_data_logs/_search?size=0
+{
+  "aggs": {
+    "range": {
+      "date_range": {
+        "field": "timestamp",
+        "format": "dd-MM-yyyy",
+        "ranges": [
+           {
+            "from": "now-3M"
+          },
+          {
+            "to": "now"
+          }
+         
+        ]
+      }
+    }
+  }
+}
+
+#anidadas
+DELETE nested_aggregation
+#crear indice
+PUT nested_aggregation
+{
+  "mappings": {
+    "properties": {
+      "employee": {
+        "type": "nested",
+            "properties" : {
+              "first_name" : { "type" : "text" },
+             "last_name" : { "type" : "text" },
+             "salary" : { "type" : "double" }
+         }}}
+}}
+
+#Registrar datos en el índice:
+PUT nested_aggregation/_doc/1
+{
+  "group" : "employees",
+  "employee" : [
+    {
+      "first_name" : "John",
+      "last_name" :  "one",
+      "salary" : "2000" 
+    },
+    {
+      "first_name" : "Paul",
+      "last_name" :  "two",
+      "salary" : "1000" 
+    },
+     {
+      "firt_name" : "Richard",
+      "last_name" :  "three",
+      "salary" : "800" 
+    }
+]}
+
+#consulta para obtener las estadísticas del salario de entre todos los empleados
+GET /nested_aggregation/_search
+{
+  "aggs": {
+    "nested_aggregation" : {
+              "nested": {
+                "path": "employee"
+              }, 
+    "aggs": {
+      "avg_salary": {
+        "avg": {
+          "field": "employee.salary"
+        }
+      }
+    }
+}}}
+
+GET /nested_aggregation/_search
+{
+  "aggs": {
+    "nested_aggregation" : {
+              "nested": {
+                "path": "employee"
+              }, 
+    "aggs": {
+      "stats_salary": {
+        "stats": {
+          "field": "employee.salary"
+        }
+      }
+    }
+}}}
+
+
+GET /kibana_sample_data_logs/_search?size=0
+{
+    "query" : {
+        "constant_score": {
+            "filter": {
+                "range": {
+                    "bytes": {
+                        "gt": 5000
+                    }
+                }
+            }
+        }
+    },
+    "aggs" : {
+        "single_avg_bytes": {
+            "avg" : { "field" : "bytes" }
+        }
+    }
+}
+
+GET kibana_sample_data_logs/_search?size=0
+{
+  "aggs": {
+    "avg-bytes": {
+      "avg": {
+        "field": "bytes"
+      }
+    }
+  }
+}
+
+GET /kibana_sample_data_logs/_search?size=0
+{
+    "size" : 99,
+    "query" : {
+                "range": {
+                    "bytes": {
+                        "gt": 19000
+                    }
+                }
+            
+    },
+    "aggs" : {
+        "single_avg_bytes": {
+            "avg" : { "field" : "bytes" }
+        }
+    }
+}
+
+
+GET /kibana_sample_data_logs/_search
+{
+   "size" : 0,
+   "aggs":{
+      "bytes":{
+         "histogram":{ 
+            "field": "bytes",
+            "interval": 2000
+         },
+         "aggs":{
+            "data_transfered": {
+               "sum": {
+                 "field" : "bytes"
+               }
+             }
+         }
+      }
+   }
+}
+
+GET /kibana_sample_data_logs/_search
+{
+   "size" : 0,
+   "aggs": {
+      "ips": {
+         "terms": {
+            "field": "clientip"
+         },
+         "aggs": {
+            "avg_bytes": {
+               "avg": {
+                  "field": "bytes"
+               }
+            },
+            "min_bytes" : { "min": { "field": "bytes"}
+            },
+            "max_bytes" : { "max": { "field": "bytes"}
+            }
+            
+         }
+      }
+   }
+}
+
+GET /kibana_sample_data_logs/_search
+{
+  "size": 0, 
+ "aggs": {
+  "bytes_stats": {
+    "stats": {
+      "field": "bytes"
+    }
+  }
+}
+}
+
+GET /kibana_sample_data_logs/_search
+{
+    "size" : 0,
+    "aggs" : {
+        "popular_ips" : {
+            "terms" : {
+              "field" : "clientip"
+            }
+        }
+    }
+}
+
+
+
+GET /kibana_sample_data_logs/_search
+{
+  "aggregations": {
+    "all_os": {
+      "terms": {
+        "field": "machine.os"
+      }
+    }
+  }
+}
+
+-------------------------
+pipelines
+
+
+GET /_ingest/pipeline/
+
+#En este ejemplo definimos una pipeline que convierte el valor presente en el campo del mensaje a mayúsculas
+PUT /_ingest/pipeline/firstpipeline
+{
+  "description": "uppercase the incoming value in the message field",
+  "processors": [
+    {
+      "uppercase": {
+        "field": "message"
+      }
+    }
+  ]
+}
+
+GET /_ingest/pipeline/firstpipeline
+
+PUT /myindex_pipeline/_doc/1?pipeline=firstpipeline
+{
+"message":"elk is awesome"
+}
+
+
+GET /myindex_pipeline/_search
+
+
+En este ejemplo hemos creado una nueva pipeline llamada secondpipeline que convierte el valor en mayúsculas presente en el campo "mensaje" y cambia el nombre del campo "mensaje" a "datos".También crea un nuevo campo llamado "etiqueta" con el valor testlabel.
+
+PUT /_ingest/pipeline/secondpipeline
+{
+  "description": "uppercase the incomming value in the message field",
+  "processors": [
+    {
+      "uppercase": {
+        "field": "message",
+        "ignore_failure": true
+      }
+    },
+    {
+      "rename": {
+        "field": "message",
+        "target_field": "data",
+        "ignore_failure": true
+      }
+    },
+    {
+      "set": {
+        "field": "label",
+        "value": "testlabel",
+        "override": false
+      }
+    }
+  ]
+}
+
+PUT /myindex_pipeline/_doc/1?pipeline=secondpipeline
+{
+"message":"elk is awesome"
+}
+
+GET /myindex_pipeline/_search
+
+#Using the ingest GeoIP plugin
+PUT _ingest/pipeline/geoip_pipeline
+{
+  "description" : "Add GeoIP Info",
+  "processors": [
+    {
+      "geoip": {
+        "field": "ip"
+      }
+    }
+  ]
+}
+
+PUT index_geoip/_doc/1?pipeline=geoip_pipeline
+{
+  "ip": "8.8.8.8"
+}
+
+GET index_geoip/_doc/1
+
+
+#Simulate an ingest pipeline
+POST /_ingest/pipeline/_simulate?verbose
+{
+  "pipeline": {
+    "description": "Add user field",
+    "processors": [
+      {
+        "set": {
+          "field": "user",
+          "value": "user1"
+        }
+      }
+    ],
+    "version": 1
+  },
+  "docs": [
+    {
+      "_index": "index",
+      "_type": "_doc",
+      "_id": "1",
+      "_source": {
+        "name": "documento1"
+      }
+    },
+    {
+      "_index": "index",
+      "_type": "_doc",
+      "_id": "2",
+      "_source": {
+        "name": "documento2"
+      }
+    }
+  ]
+}
+
+
+POST /_ingest/pipeline/_simulate
+{
+  "pipeline": {
+    "description": "Testing some build-processors",
+    "processors": [
+      {
+        "dot_expander": {
+          "field": "extfield.innerfield"
+        }
+      },
+      {
+        "remove": {
+          "field": "unwanted"
+        }
+      },
+      {
+        "trim": {
+          "field": "message"
+        }
+      },
+      {
+        "set": {
+          "field": "tokens",
+          "value": "{{message}}"
+        }
+      },
+      {
+        "split": {
+          "field": "tokens",
+          "separator": "\\s+"
+        }
+      },
+      {
+        "sort": {
+          "field": "tokens",
+          "order": "desc"
+        }
+      },
+      {
+        "convert": {
+          "field": "mynumbertext",
+          "target_field": "mynumber",
+          "type": "integer"
+        }
+      }
+    ]
+  },
+  "docs": [
+    {
+      "_index": "index",
+      "_type": "type",
+      "_id": "1",
+      "_source": {
+        "extfield.innerfield": "booo",
+        "unwanted": 32243,
+        "message": "155.2.124.3   GET /index.html   15442 0.038",
+        "mynumbertext": "3123"
+      }
+    }
+  ]
+}
+
+
+POST /_ingest/pipeline/_simulate
+{
+  "pipeline": {
+    "description": "Testing grok pattern",
+    "processors": [
+      {
+        "grok": {
+          "field": "message",
+          "patterns": [
+            "%{IP:client} %{WORD:method} %{URIPATHPARAM:request} %{NUMBER:bytes} %{NUMBER:duration}"
+          ]
+        }
+      }
+    ]
+  },
+  "docs": [
+    {
+      "_index": "index",
+      "_type": "type",
+      "_id": "1",
+      "_source": {
+        "message": "155.2.124.3 GET /index.html 15442 0.038"
+      }
+    }
+  ]
+}
+
+
+POST /_ingest/pipeline/_simulate?verbose
+{
+  "pipeline": {
+    "description": "custom grok pattern",
+    "processors": [
+      {
+        "grok": {
+          "field": "message",
+          "patterns": [
+            "my favorite color is %{COLOR:color}"
+          ],
+          "pattern_definitions": {
+            "COLOR": "RED|GREEN|BLUE"
+          }
+        }
+      }
+    ]
+  },
+  "docs": [
+    {
+      "_source": {
+        "message": "my favorite color is RED"
+      }
+    },
+    {
+      "_source": {
+        "message": "happy fail!!"
+      }
+    }
+  ]
+}
