@@ -1,3 +1,82 @@
+$ docker-compose -f cluster_docker_compose.yml up 
+
+#1 nodo master y 2 de datos
+
+$ curl -X GET "localhost:9200/_cat/nodes?v=true&pretty"                                           ✔ 
+ip         heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
+172.20.0.4           33          98  69    5.18    2.76     1.58 cdfhilmrstw -      es01
+172.20.0.3           46          98  68    5.18    2.76     1.58 cdfhilmrstw *      es02
+172.20.0.2           30          98  62    5.18    2.76     1.58 cdfhilmrstw -      es03
+
+#estado del cluster
+$ curl -X GET "localhost:9200/_cluster/health?pretty"
+
+
+#podríamos crear un índice de 2 shards y 1 réplica
+
+$ curl -X PUT "localhost:9200/my-index?pretty" -H 'Content-Type: application/json' -d'
+{
+  "settings": {
+    "number_of_shards": 2,
+    "number_of_replicas": 1
+  }
+}
+'
+#obtener índices
+$ curl -X GET "localhost:9200/_cat/indices?v=true&pretty"
+
+#Visualizar shards(0,1) para un determinado índice:
+#En el nodo master  tengo un shard primary, en un nodo de datos tengo una réplica y en el otro tengo el otro shard y #1 réplica.
+
+$ curl -X GET "localhost:9200/_cat/shards/my-index"
+
+my-index 1 r STARTED 0 208b 172.21.0.3 es03
+my-index 1 p STARTED 0 208b 172.21.0.2 es02
+my-index 0 p STARTED 0 208b 172.21.0.3 es03
+my-index 0 r STARTED 0 208b 172.21.0.4 es01
+
+#Si añadimos un par de documentos al índice:
+
+$ curl -X POST "localhost:9200/my-index/_doc/?pretty" -H 'Content-Type: application/json' -d'
+{
+  "@timestamp": "2021-01-01T13:12:00",
+  "message": "GET /search HTTP/1.1 200 1070000",
+  "user": {
+    "id": "1"
+  }
+}
+'
+
+$ curl -X POST "localhost:9200/my-index/_doc/?pretty" -H 'Content-Type: application/json' -d'
+{
+  "@timestamp": "2021-01-01T13:12:00",
+  "message": "GET /search HTTP/1.1 200 1070000",
+  "user": {
+    "id": "2"
+  }
+}
+'
+
+#busqueda de documentos
+$ curl -X GET "localhost:9200/my-index/_search" 
+
+#En este punto lo que intenta es distribuir esos documentos entre los diferentes nodos utilizando los shards y #réplicas definidos de la forma más óptima posible.
+
+$ curl -X GET "localhost:9200/_cat/shards/my-index"                                               ✔ 
+my-index 1 r STARTED 0  208b 172.20.0.4 es01
+my-index 1 p STARTED 2   5kb 172.20.0.3 es02
+my-index 0 r STARTED 0  208b 172.20.0.2 es03
+my-index 0 p STARTED 1 4.8kb 172.20.0.4 es01
+
+#Si paro el nodo 3, lo que hace es asignar los shards y réplicas en los nodos 1 y 2.
+#En el momento de eliminar un nodo del cluster pasa a estado yellow indicando que hay fragmentos réplica que no se #han asignado.
+
+$ curl -X GET "localhost:9200/_cat/shards/my-index"                                               ✔ 
+my-index 1 r STARTED    2 5.1kb 172.20.0.4 es01
+my-index 1 p STARTED    2 5.1kb 172.20.0.3 es02
+my-index 0 p STARTED    1 4.9kb 172.20.0.4 es01
+my-index 0 r UNASSIGNED  
+
 $ curl -XPUT 'http://elastic:elastic@localhost:9200/mi_indice/'
 
 $ curl -XGET 'http://elastic:elastic@localhost:9200/mi_indice?pretty'
