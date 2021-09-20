@@ -12,7 +12,7 @@ ip         heap.percent ram.percent cpu load_1m load_5m load_15m node.role   mas
 $ curl -X GET "localhost:9200/_cluster/health?pretty"
 
 
-#podríamos crear un índice de 2 shards y 1 réplica
+#podríamos crear un índice de 2 shards y 1 réplica 
 
 $ curl -X PUT "localhost:9200/my-index?pretty" -H 'Content-Type: application/json' -d'
 {
@@ -160,7 +160,7 @@ GET /kibana_sample_data_flights/_mget
 }
 
 #Otra forma de utilizar mget es utilizando un array de docs donde el nombre del índice lo indicamos dentro del array.
-#podmeos utilizar diferentes índices
+#podemos utilizar diferentes índices
 GET /_mget
 {
   "docs": [
@@ -681,6 +681,62 @@ POST /kibana_sample_data_flights/_update_by_query
   },
   "script": {
     "source": "ctx._source.new_field='description'"
+  }
+}
+
+#time zones for dates
+https://www.elastic.co/guide/en/elasticsearch/reference/current/date-processor.html
+##"timezone": "+0200"
+PUT _ingest/pipeline/chage_utc_to_europe
+{
+  "processors": [
+    {
+      "date" : {
+        "field" : "my_date",
+        "target_field": "my_date", 
+        "formats" : ["yyyy-MM-dd HH:mm:ss"],
+        "timezone" : "Europe/Amsterdam"
+        
+      }
+    }
+  ]
+}
+
+PUT my-index-date-processor
+{
+  "settings": {
+    "default_pipeline": "chage_utc_to_europe"
+  },
+  "mappings": {
+    "properties": {
+      "my_date": {
+        "type": "date"
+      }
+    }
+  }
+}
+
+PUT my-index-date-processor/_doc/1
+{
+  "my_date": "2021-09-20 15:00:10"
+}
+
+PUT my-index-date-processor/_doc/2
+{
+  "my_date": "2021-09-21 20:00:10"
+}
+
+GET my-index-date-processor/_search
+{
+  "query": {
+    "range": {
+      "my_date": {
+        "gte": "2021-09-20 00:00:00",
+        "lte": "2021-09-21 20:00:10",
+        "format": "yyyy-MM-dd HH:mm:ss",
+        "time_zone": "+02:00"
+      }
+    }
   }
 }
 
