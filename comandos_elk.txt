@@ -12,6 +12,13 @@ ip         heap.percent ram.percent cpu load_1m load_5m load_15m node.role   mas
 $ curl -X GET "localhost:9200/_cluster/health?pretty"
 
 
+https://www.elastic.co/es/blog/how-many-shards-should-i-have-in-my-elasticsearch-cluster
+
+#Depende mucho del volumen de datos que vamos a manejar
+#Es importante encontrar el equilibrio adecuado entre la cantidad de índices, shards y el tamaño de shard para cada #índice individual.
+#Sería importante también monitorizar el uso de la memoria en los nodos maestros y asegurarse de que tengan el #tamaño adecuado.
+#La regla de oro es asegurarse de mantener la cantidad de shards por nodo por debajo de 20 por cada GigaByte de heap #configurado. Por lo tanto, un nodo con un heap de 30 GB debería contar con un máximo de 600.
+
 #podríamos crear un índice de 2 shards y 1 réplica 
 
 $ curl -X PUT "localhost:9200/my-index?pretty" -H 'Content-Type: application/json' -d'
@@ -656,13 +663,6 @@ POST kibana_sample_data_flights/_mappings
   }
 }
 
-POST kibana_sample_data_flights/_analyze
-{
-  "field":"OriginCityName",
-  "text":"Frankfurt am Main Airportfd",
-  "explain":true
-}
-
 POST kibana_sample_data_flights/_update_by_query
 {
  "script": {
@@ -907,6 +907,36 @@ POST index_standard_analyzer_english_stopwords/_analyze
 "field": "my_text",
 "text": "The Standard Analyzer works this way."
 }
+
+#con tratamiento de stopwords en spanish
+PUT index_standard_analyzer_spanish_stopwords
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "std": {
+          "type": "standard",
+          "stopwords": "_spanish_"
+        }
+      }
+    }
+  },
+  "mappings": {
+      "properties": {
+        "my_text": {
+          "type": "text",
+          "analyzer": "std"
+        }
+      }
+  }
+}
+
+POST index_standard_analyzer_spanish_stopwords/_analyze
+{
+"field": "my_text",
+"text": "El analizador estándar con funciona de esta forma con stopwords"
+}
+
 
 #analizador personalizado->uppercase+my_stopwords+ char_filter
 
@@ -1378,6 +1408,18 @@ GET kibana_sample_data_logs/_search
         "agent^2",
         "message"
       ]
+    }
+  }
+}
+
+GET kibana_sample_data_logs/_search
+{
+  "query": {
+    "match": {
+      "agent": {
+        "query": "x86_64",
+        "boost": 2
+      }
     }
   }
 }
