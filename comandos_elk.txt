@@ -668,7 +668,7 @@ POST kibana_sample_data_flights/_update_by_query
  "script": {
  "source": """
  ctx._source.origin = ctx._source.Origin;
- """,
+ """,	
  "lang": "painless"
  }
 }
