@@ -1,7 +1,7 @@
 import socket
  
 mySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-mySocket.bind(('localhost', 8080))
+mySocket.bind(('localhost', 8081))
 mySocket.listen(5)
  
 while True:

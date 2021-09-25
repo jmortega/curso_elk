@@ -1,0 +1,58 @@
+Descargar apm agent
+---------------------
+https://search.maven.org/search?q=a:elastic-apm-agent
+
+Desplegar aplicación
+--------------------
+java -javaagent:/home/linux/Descargas/elastic-apm-agent-1.26.0.jar \
+     -Delastic.apm.service_name=my-application \
+     -Delastic.apm.server_urls=http://localhost:8200 \
+     -Delastic.apm.secret_token= \
+     -Delastic.apm.environment=production \
+     -Delastic.apm.application_packages=org.springframework.samples \
+     -jar /home/linux/Descargas/spring-petclinic-2.1.0.BUILD-SNAPSHOT.jar
+     
+apm-server.yml
+--------------------
+output.elasticsearch:
+  hosts: ["localhost:9200"]
+  # Boolean flag to enable or disable the output module.
+  enabled: true
+  username: "elastic"
+  password: "elastic"
+  
+kibana:
+    # For APM Agent configuration in Kibana, enabled must be true.
+    enabled: true
+    host: "localhost:5601"
+    # Optional protocol and basic auth credentials.
+    #protocol: "https"
+    username: "elastic"
+    password: "elastic"
+    
+índices apm
+-------------------------------    
+GET _cat/indices/apm*?v&s=index
+
+GET apm-7.15.0-metric-000001/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+
+GET apm-7.15.0-transaction-000001/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+
+GET apm-7.15.0-error-000001/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}

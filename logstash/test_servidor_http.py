@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import socket
 webhost = 'localhost'
-webport = 8080
+webport = 8081
 print("Contacting %s on port %d ..." % (webhost, webport))
 webclient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 webclient.connect((webhost, webport))
