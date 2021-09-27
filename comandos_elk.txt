@@ -2504,6 +2504,18 @@ POST /_ingest/pipeline/_simulate
             "%{IP:client} %{WORD:method} %{URIPATHPARAM:request} %{NUMBER:bytes} %{NUMBER:duration}"
           ]
         }
+      },
+      {
+        "convert": {
+          "field": "bytes",
+          "type": "integer"
+        }
+      },
+      {
+        "convert": {
+          "field": "duration",
+          "type": "double"
+        }
       }
     ]
   },
@@ -2520,34 +2532,38 @@ POST /_ingest/pipeline/_simulate
 }
 
 
-POST /_ingest/pipeline/_simulate?verbose
+PUT /_ingest/pipeline/pipeline_grok
 {
-  "pipeline": {
-    "description": "custom grok pattern",
+    "description": "Testing grok pattern",
     "processors": [
       {
         "grok": {
           "field": "message",
           "patterns": [
-            "my favorite color is %{COLOR:color}"
-          ],
-          "pattern_definitions": {
-            "COLOR": "RED|GREEN|BLUE"
-          }
+            "%{IP:client} %{WORD:method} %{URIPATHPARAM:request} %{NUMBER:bytes} %{NUMBER:duration}"
+          ]
+        }
+      },
+      {
+        "convert": {
+          "field": "bytes",
+          "type": "integer"
+        }
+      },
+      {
+        "convert": {
+          "field": "duration",
+          "type": "double"
         }
       }
     ]
-  },
-  "docs": [
-    {
-      "_source": {
-        "message": "my favorite color is RED"
-      }
-    },
-    {
-      "_source": {
-        "message": "happy fail!!"
-      }
-    }
-  ]
 }
+
+PUT index_grok/_doc/1?pipeline=pipeline_grok
+{
+  "message": "155.2.124.3 GET /index.html 15442 0.038"
+}
+
+GET index_grok/_doc/1
+
+GET index_grok/_mapping

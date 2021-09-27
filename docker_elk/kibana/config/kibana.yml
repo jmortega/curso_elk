@@ -8,9 +8,11 @@ elasticsearch.hosts: [ "http://elasticsearch:9200" ]
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 
 ## X-Pack security credentials
-#
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters"
 elasticsearch.username: elastic
 elasticsearch.password: elastic
+
 
 ## X-Pack LogsUI configuration
 xpack.infra.sources.default.logAlias: "filebeat-*,logstash-*"
