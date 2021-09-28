@@ -2567,3 +2567,467 @@ PUT index_grok/_doc/1?pipeline=pipeline_grok
 GET index_grok/_doc/1
 
 GET index_grok/_mapping
+
+#Obtener modelos entrenados
+GET _ml/trained_models/
+GET _ml/trained_models/_all
+GET _ml/trained_models/_stats
+GET _ml/trained_models/_all/_stats
+
+#obtener información de un modelo
+GET _ml/trained_models/<model_id>
+
+#estadísticas para un modelo
+GET _ml/trained_models/<model_id>/_stats
+
+#inferencia de modelos
+GET _ml/inference
+GET _ml/inference/?filter_path=trained_model_configs.model_id
+
+#algoritmo regresion sobre kibana_sample_data_flights
+PUT /_ml/data_frame/analytics/model-flight-delay-regression-test?pretty
+{
+  "source": {
+    "index": [
+      "kibana_sample_data_flights"
+    ],
+    "query": {
+      "range": {
+        "DistanceKilometers": {
+          "gt": 0
+        }
+      }
+    }
+  },
+  "dest": {
+    "index": "model-flight-delay-regression-test"
+  },
+  "analysis": {
+    "regression": {
+      "num_top_feature_importance_values": 5,
+      "dependent_variable": "FlightDelayMin",
+      "training_percent": 80
+    }
+  },
+  "analyzed_fields": {
+    "includes": [],
+    "excludes": [
+      "Cancelled",
+      "FlightDelay",
+      "FlightDelayType"
+    ]
+  }
+}
+
+#arrancar el job
+POST /_ml/data_frame/analytics/model-flight-delay-regression-test/_start?pretty
+
+#obtener estadísticas del job
+GET /_ml/data_frame/analytics/model-flight-delay-regression-test/_stats?pretty
+
+#busqueda
+GET /model-flight-delay-regression-test/_search?pretty
+
+#metricas para datos de entrenamiento
+POST /_ml/data_frame/_evaluate?pretty
+{
+  "index": "model-flight-delay-regression-test",
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "ml.is_training": true
+          }
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "regression": {
+      "actual_field": "FlightDelayMin",
+      "predicted_field": "ml.FlightDelayMin_prediction",
+      "metrics": {
+        "r_squared": {},
+        "mse": {},
+        "msle": {},
+        "huber": {}
+      }
+    }
+  }
+}
+
+#metricas para datos de pruebas
+POST /_ml/data_frame/_evaluate?pretty
+{
+  "index": "model-flight-delay-regression-test",
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "ml.is_training": false
+          }
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "regression": {
+      "actual_field": "FlightDelayMin",
+      "predicted_field": "ml.FlightDelayMin_prediction",
+      "metrics": {
+        "r_squared": {},
+        "mse": {},
+        "msle": {},
+        "huber": {}
+      }
+    }
+  }
+}
+
+#error de generalización
+POST /_ml/data_frame/_evaluate?pretty
+{
+  "index": "model-flight-delay-regression-test",
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "ml.is_training": false
+          }
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "regression": {
+      "actual_field": "FlightDelayMin",
+      "predicted_field": "ml.FlightDelayMin_prediction",
+      "metrics": {
+        "r_squared": {},
+        "mse": {},
+        "msle": {},
+        "huber": {}
+      }
+    }
+  }
+}
+
+#algoritmo classification sobre kibana_sample_data_flights
+PUT /_ml/data_frame/analytics/model-flight-delays-classification?pretty
+{
+  "source": {
+    "index": [
+      "kibana_sample_data_flights"
+    ]
+  },
+  "dest": {
+    "index": "model-flight-delays-classification",
+    "results_field": "ml"
+  },
+  "analysis": {
+    "classification": {
+      "dependent_variable": "FlightDelay",
+      "training_percent": 90
+    }
+  },
+  "analyzed_fields": {
+    "includes": [],
+    "excludes": [
+      "Cancelled",
+      "FlightDelayMin",
+      "FlightDelayType"
+    ]
+  }
+}
+
+#arrancar el job
+POST /_ml/data_frame/analytics/model-flight-delays-classification/_start?pretty
+
+#obtener estadísticas del job
+GET /_ml/data_frame/analytics/model-flight-delays-classification/_stats?pretty
+
+#busqueda
+GET /model-flight-delays-classification/_search?pretty
+
+##evaluar el modelo y matriz de confusion
+POST /_ml/data_frame/_evaluate?pretty
+{
+  "index": "model-flight-delays-classification",
+  "query": {
+    "term": {
+      "ml.is_training": {
+        "value": true
+      }
+    }
+  },
+  "evaluation": {
+    "classification": {
+      "actual_field": "FlightDelay",
+      "predicted_field": "ml.FlightDelay_prediction",
+      "metrics": {
+        "multiclass_confusion_matrix": {}
+      }
+    }
+  }
+}
+
+#Para predecir el retraso de un nuevo vuelo, pasamos los datos de un vuelo, no etiquetado, como retrasado o no, por una pipeline de ingesta un vuelo ejemplo, usando el modelo de regresión “model-flight-delay-regression-1632839053548”:
+
+# Inference processor for flight delays with regression model
+POST _ingest/pipeline/_simulate?filter_path=docs.doc._source
+{
+  "pipeline": {
+    "processors": [
+      {
+        "inference": {
+          "model_id": "model-flight-delay-regression-test-1632839053548",
+          "inference_config": {
+            "regression": {
+              "results_field": "PredictedFlightDelay"
+            }
+          },
+          "field_mappings": {}
+        }
+      }
+    ]
+  },
+  "docs": [
+    {
+      "_source": {
+        "FlightNum": "OODIP58",
+        "DestCountry": "CN",
+        "OriginWeather": "Thunder & Lightning",
+        "OriginCityName": "Abu Dhabi",
+        "AvgTicketPrice": 252.9119662217096,
+        "DistanceMiles": 3032.4467769272865,
+        "DestWeather": "Sunny",
+        "Dest": "Chengdu Shuangliu International Airport",
+        "OriginCountry": "AE",
+        "dayOfWeek": 0,
+        "DistanceKilometers": 4880.250025767267,
+        "timestamp": "2020-02-10T12:05:14",
+        "DestLocation": {
+          "lat": "30.57850075",
+          "lon": "103.9469986"
+        },
+        "DestAirportID": "CTU",
+        "Carrier": "Kibana Airlines",
+        "FlightTimeMin": 490.3500017178178,
+        "Origin": "Abu Dhabi International Airport",
+        "OriginLocation": {
+          "lat": "24.43300056",
+          "lon": "54.65110016"
+        },
+        "DestRegion": "SE-BD",
+        "OriginAirportID": "AUH",
+        "OriginRegion": "SE-BD",
+        "DestCityName": "Chengdu"
+      }
+    },
+    {
+      "_source": {
+        "FlightNum": "9HY9SWR",
+        "DestCountry": "AU",
+        "OriginWeather": "Sunny",
+        "OriginCityName": "Frankfurt am Main",
+        "AvgTicketPrice": 841.2656419677076,
+        "DistanceMiles": 10247.856675613455,
+        "DestWeather": "Rain",
+        "Dest": "Sydney Kingsford Smith International Airport",
+        "OriginCountry": "DE",
+        "dayOfWeek": 0,
+        "DistanceKilometers": 16492.32665375846,
+        "DestLocation": {
+          "lat": "-33.94609833",
+          "lon": "151.177002"
+        },
+        "DestAirportID": "SYD",
+        "Carrier": "Kibana Airlines",
+        "FlightTimeMin": 1030.7704158599038,
+        "Origin": "Frankfurt am Main Airport",
+        "OriginLocation": {
+          "lat": "50.033333",
+          "lon": "8.570556"
+        },
+        "DestRegion": "SE-BD",
+        "OriginAirportID": "FRA",
+        "OriginRegion": "DE-HE",
+        "DestCityName": "Sydney",
+        "FlightTimeHour": 17.179506930998397
+      }
+    }
+  ]
+}
+
+# Inference using a pre-trained language  identification model to determine the language of a text
+# Idiomas
+# https://www.elastic.co/guide/en/machine-learning/current/ml-lang-ident.html
+POST _ingest/pipeline/_simulate?filter_path=docs.doc._source.text,docs.doc._source.ml.inference.top_classes
+{
+   "pipeline":{
+      "processors":[
+         {
+            "inference":{
+               "model_id":"lang_ident_model_1", 
+               "inference_config":{
+                  "classification":{
+                     "num_top_classes":2 
+                  }
+               },
+               "field_mappings":{
+
+               }
+            }
+         }
+      ]
+   },
+   "docs":[
+      {
+         "_source":{ 
+            "text":"Con frecuencia usamos arquitecturas hot-warm para sacar el máximo provecho de nuestro hardware. Son particularmente útiles cuando tenemos datos basados en el tiempo, como registros, métricas y datos de APM. La mayoría de estas configuraciones se basan en el hecho de que estos datos son de sólo lectura (después de la ingesta) y que los índices pueden estar basados en el tiempo (o el tamaño). Por lo tanto, se pueden eliminar con facilidad según nuestro período de retención deseado. Con este tipo de arquitectura, categorizamos los nodos de Elasticsearch en dos tipos: “hot” y “warm”."
+         }
+      },
+      {
+         "_source":{ 
+            "text":"Nous avons souvent recours aux architectures hot-warm lorsque nous voulons tirer pleinement parti de notre matériel. Celles-ci sont particulièrement utiles lorsque nous disposons de données temporelles, comme les logs, les indicateurs et les données APM. Pour la plupart des configurations, les données sont en lecture seule (après l’ingestion) et les index sont basés sur une durée (ou une taille). Il est donc facile de les supprimer selon la durée pendant laquelle nous souhaitons les conserver. Dans ce type d’architecture, nous classons les nœuds Elasticsearch en deux catégories : «hot» et «warm»."
+         }
+      },
+      {
+         "_source":{ 
+            "text":"Hot-Warm architectures are often used when we want to get the most out of our hardware. It is particularly useful when we have time-based data, like logs, metrics, and APM data. Most of these setups rely on the fact that this data is read-only (after ingest) and that indices can be time(or size)-based. So they can be easily deleted based on our desired retention period. In this architecture, we categorize Elasticsearch nodes into two types: 'hot' and 'warm'."
+         }
+      }
+   ]
+}
+
+Detección de anomalías
+-------------------------
+GET _ml/info
+
+#obtener jobs
+GET _ml/anomaly_detectors/_all
+
+#Detalles de un job
+GET _ml/anomaly_detectors/<job_id>
+
+#obtener estadísticas de un job
+GET _ml/anomaly_detectors/<job_id>/_stats
+
+#obtener buckets de un job
+GET _ml/anomaly_detectors/<job_id>/results/buckets/
+GET _ml/anomaly_detectors/<job_id>/results/overall_buckets
+
+#resultados del job
+GET _ml/anomaly_detectors/<job_id>/results/records
+GET _ml/anomaly_detectors/<job_id>/results/influencers
+GET _ml/anomaly_detectors/<job_id>/results/categories
+GET _ml/anomaly_detectors/<job_id>/model_snapshots
+
+#Abrir un job
+#significa comenzar a recibir nuevos datos desde donde se quedó la última vez y continuar con el análisis
+POST _ml/anomaly_detectors/<job_id>/_open
+
+#cerrar un job
+POST _ml/anomaly_detectors/<job_id>/_close
+
+#borrar un job
+DELETE _ml/anomaly_detectors/<job_id>
+
+
+# crear un job utilizando la api
+---------------------------------
+PUT /_ml/anomaly_detectors/weblogs-geo?pretty
+{
+  "analysis_config": {
+    "bucket_span": "15m",
+    "detectors": [
+      {
+        "detector_description": "Unusual coordinates",
+        "function": "lat_long",
+        "field_name": "geo.coordinates"
+      },
+      {
+        "function": "high_sum",
+        "field_name": "bytes"
+      }
+    ],
+    "influencers": [
+      "geo.src",
+      "extension.keyword",
+      "geo.dest"
+    ]
+  },
+  "data_description": {
+    "time_field": "timestamp",
+    "time_format": "epoch_ms"
+  }
+}
+
+#Añadir datos al job utilizando el índice kibana_sample_data_logs
+------------------------------------------------------------
+PUT /_ml/datafeeds/datafeed-weblogs-geo?pretty
+{
+  "job_id": "weblogs-geo",
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match_all": {}
+        }
+      ]
+    }
+  },
+  "indices": [
+    "kibana_sample_data_logs"
+  ]
+}
+
+#Abrir el job
+POST /_ml/anomaly_detectors/weblogs-geo/_open?pretty
+
+#inciar el job
+POST /_ml/datafeeds/datafeed-weblogs-geo/_start?pretty
+{
+
+  "end": "2021-09-30T22:00:00Z"
+
+}
+
+#Predicciones a futuro
+
+#el job tiene que estar open
+POST /_ml/anomaly_detectors/weblogs-geo/_open?pretty
+
+POST _ml/anomaly_detectors/weblogs-geo/_forecast
+{
+  "duration": "2d"
+}
+
+#estimar la memoria necesaria para ejecutar un job
+POST _ml/anomaly_detectors/_estimate_model_memory
+{
+  "analysis_config": {
+    "bucket_span": "5m",
+    "detectors": [
+      {
+        "function": "sum",
+        "field_name": "bytes",
+        "by_field_name": "status",
+        "partition_field_name": "app"
+      }
+    ],
+    "influencers": [ "source_ip", "dest_ip" ]
+  },
+  "overall_cardinality": {
+    "status": 10,
+    "app": 50
+  },
+  "max_bucket_cardinality": {
+    "source_ip": 300,
+    "dest_ip": 30
+  }
+}
+
